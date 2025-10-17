@@ -1,6 +1,6 @@
 import sqlite3
 
-conn = sqlite3.connect("database.db")
+conn = sqlite3.connect("Backend/sql/database.db")
 
 conn.execute("PRAGMA foreign_keys = ON;")
 
