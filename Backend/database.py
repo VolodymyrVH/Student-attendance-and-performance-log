@@ -96,25 +96,5 @@ CREATE TABLE IF NOT EXISTS schedule (
 )
 """)
 
-#checking creating of tables
-cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
-print(cursor.fetchall())
-
-#adding some data
-cursor.execute("""
-INSERT INTO users (full_name, password, role)
-               VALUES 
-                    ('Admin Test', '1234', 'admin'),
-                    ('Student', '4321', 'student'),
-                    ('Teacher', '1234', 'teacher');
-               """)
-conn.commit()
-cursor.execute("SELECT full_name, role FROM users WHERE role='admin';")
-print(cursor.fetchall())
-
-#cheking tables
-cursor.execute("SELECT * FROM users")
-print(cursor.fetchall())
-
 conn.commit()
 conn.close()
