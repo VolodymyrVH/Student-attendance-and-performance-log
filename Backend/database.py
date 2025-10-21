@@ -1,6 +1,10 @@
 import sqlite3
+import os
 
-conn = sqlite3.connect("Backend/sql/database.db")
+path = "sql"
+os.makedirs(path, exist_ok=True)
+
+conn = sqlite3.connect(f"{path}/database.db")
 
 conn.execute("PRAGMA foreign_keys = ON;")
 
@@ -19,6 +23,7 @@ cursor.execute("""
 CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     full_name TEXT NOT NULL,
+    password TEXT NOT NULL,
     role TEXT NOT NULL CHECK (role IN ('student', 'teacher', 'admin')),
     group_id INTEGER,
     FOREIGN KEY (group_id) REFERENCES groups(id)
