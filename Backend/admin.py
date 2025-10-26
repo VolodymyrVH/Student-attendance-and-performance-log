@@ -168,32 +168,40 @@ def addSubject():
     print("Subject added successfully.")
 
 
-#def changeSubject():
-#def deleteSubject():
-#def changeAttendacne():
+def changeSubject():
+    name = input("Enter subject name to change something: ")
+    changing = input("What do you want to change in this group? (Name / Teacher): ").lower()
+
+    if changing == "name":
+        new_value = input("Enter new subject name: ")
+        cursor.execute("UPDATE subjects SET subject_name = ? WHERE subject_name = ?", (new_value, name))
+
+    elif changing == "teacher":
+        new_teacher = input("Enter new teacher full name: ")
+        cursor.execute("SELECT id FROM users WHERE full_name = ? AND role = 'teacher'", (new_teacher,))
+        result = cursor.fetchone()
+
+        if result:
+            teacher_id = result[0]
+            cursor.execute("UPDATE subjects SET teacher_id = ? WHERE subject_name = ?", (teacher_id, name))
+        else:
+            print("No teacher found with that name.")
+            return
+
+    else:
+        print("Invalid option")
+        return
+
+    conn.commit()
+    print("Subject updated successfully.")
 
 
-#cursor.execute("SELECT * FROM users")
-#print(cursor.fetchall())
-
-#addUser()
-#deleteUser()
-#cursor.execute("SELECT * FROM users")
-#print(cursor.fetchall())
-
-#changeUser()
-#cursor.execute("SELECT * FROM users")
-#print(cursor.fetchall())
-
-#createGroup()
-
-#cursor.execute("SELECT * FROM users")
-#print(cursor.fetchall())
-#cursor.execute("SELECT * FROM groups")
-#print(cursor.fetchall())
-
-#changeGroup()
-#cursor.execute("SELECT * FROM users")
-#print(cursor.fetchall())
-#cursor.execute("SELECT * FROM groups")
-#print(cursor.fetchall())
+def deleteSubject():
+    deleteName = input("Enter subject name to delete: ")
+    cursor.execute("SELECT id FROM subjects WHERE subject_name = ?", (deleteName,))
+    if cursor.fetchone():
+        cursor.execute("DELETE FROM subjects WHERE subject_name = ?", (deleteName,))
+        conn.commit()
+        print("Subject deleted successfully.")
+    else:
+        print("No subject found with that name.")
