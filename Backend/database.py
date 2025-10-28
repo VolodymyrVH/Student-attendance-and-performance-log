@@ -34,22 +34,23 @@ cursor.execute("""
 CREATE TABLE IF NOT EXISTS subjects (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     subject_name TEXT NOT NULL,
-    group_id INTEGER NOT NULL,
-    teacher_id INTEGER NOT NULL,
-    UNIQUE(subject_name, group_id),
-    FOREIGN KEY (group_id) REFERENCES groups(id),
-    FOREIGN KEY (teacher_id) REFERENCES users(id)
-)
+    UNIQUE(subject_name)
+);
 """)
 
 cursor.execute("""
-CREATE TABLE IF NOT EXISTS lessons (
+CREATE TABLE lessons (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     subject_id INTEGER NOT NULL,
+    teacher_id INTEGER NOT NULL,
     lesson_date DATE NOT NULL,
+    time TEXT NOT NULL,
+    room TEXT NOT NULL,
     topic TEXT NOT NULL,
-    FOREIGN KEY (subject_id) REFERENCES subjects(id)
-)
+    type TEXT CHECK (type IN ('lecture', 'practice', 'lab')),
+    FOREIGN KEY (subject_id) REFERENCES subjects(id),
+    FOREIGN KEY (teacher_id) REFERENCES users(id)
+);
 """)
 
 cursor.execute("""
@@ -78,22 +79,25 @@ CREATE TABLE IF NOT EXISTS grades (
 """)
 
 cursor.execute("""
-CREATE TABLE IF NOT EXISTS schedule (
+CREATE TABLE IF NOT EXISTS subject_teachers (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    group_id INTEGER NOT NULL,
     subject_id INTEGER NOT NULL,
-    day_of_week TEXT NOT NULL CHECK (
-        day_of_week IN ('Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday')
-    ),
-    time TEXT NOT NULL,
-    room TEXT NOT NULL,
-    type TEXT CHECK (type IN ('lecture', 'practice', 'lab')),
     teacher_id INTEGER NOT NULL,
-    UNIQUE(group_id, subject_id, day_of_week, time),
-    FOREIGN KEY (group_id) REFERENCES groups(id),
     FOREIGN KEY (subject_id) REFERENCES subjects(id),
-    FOREIGN KEY (teacher_id) REFERENCES users(id)
-)
+    FOREIGN KEY (teacher_id) REFERENCES users(id),
+    UNIQUE(subject_id, teacher_id)
+);
+""")
+
+cursor.execute("""
+CREATE TABLE lesson_groups (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    lesson_id INTEGER NOT NULL,
+    group_id INTEGER NOT NULL,
+    FOREIGN KEY (lesson_id) REFERENCES lessons(id),
+    FOREIGN KEY (group_id) REFERENCES groups(id),
+    UNIQUE(lesson_id, group_id)
+);
 """)
 
 conn.commit()
