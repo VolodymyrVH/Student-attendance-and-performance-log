@@ -2,6 +2,7 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from database import get_connection, init_db
 from admin import router as admin_router
+from teacher import router as teacher_router
 
 app = FastAPI(title="Student Attendance and Performance Log API")
 
@@ -27,36 +28,26 @@ def get_groups():
     conn.close()
     return {"groups": groups}
 
+
+@app.get("/subjects")
+def get_subjects():
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM subjects")
+    subjects = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    return {"subjects": subjects}
+
+@app.get("/lessons")
+def get_lessons():
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM lessons")
+    lessons = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    return {"lessons": lessons}
+
 app.include_router(admin_router)
-
-
-#items = []
-"""
-class Item(BaseModel):
-    text: str = None
-    is_done: bool = False
-
-
-@app.get("/")
-def root():
-    return {"Hello": "World"}
-
-
-@app.post("/items")
-def create_item(item: Item):
-    items.append(item)
-    return items
-
-
-@app.get("/items", response_model=list[Item])
-def list_items(limit: int = 10):
-    return items[:limit]
-
-
-@app.get("/items/{item_id}", response_model=Item)
-def get_item(item_id: int) -> Item:
-    if item_id < len(items):
-        return items[item_id]
-    else:
-        raise HTTPException(status_code=404, detail="Item not found")
-"""
+app.include_router(teacher_router)
