@@ -37,6 +37,57 @@ class SubjectChange(BaseModel):
     subject_name: str
 
 
+@router.get("/get_users")
+def getAllUsers():
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute("SELECT id, full_name, role, group_id FROM users")
+        data = cursor.fetchall()
+
+        users_list = [
+            {
+                "id": row[0],
+                "full_name": row[1],
+                "role": row[2],
+                "group_id": row[3]
+            }
+            for row in data
+        ]
+
+        return users_list
+
+    finally:
+        conn.close()
+
+
+@router.get("/get_user/{user_id}")
+def getUser(user_id: int):
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute(
+            "SELECT id, full_name, role, group_id FROM users WHERE id = ?", 
+            (user_id,)
+        )
+        row = cursor.fetchone()
+
+        if not row:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        return {
+            "id": row[0],
+            "full_name": row[1],
+            "role": row[2],
+            "group_id": row[3]
+        }
+
+    finally:
+        conn.close()
+
+
 @router.post("/add_user")
 def addUser(user: UserCreate):
     conn = get_connection()
@@ -144,6 +195,55 @@ def changeUser(user_id: int, user: UserUpdate):
         conn.close()
 
 
+@router.get("/get_groups")
+def getGroups():
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute("SELECT id, group_name, curator_id FROM groups")
+        rows = cursor.fetchall()
+
+        groups = [
+            {
+                "id": row[0],
+                "group_name": row[1],
+                "curator_id": row[2]
+            }
+            for row in rows
+        ]
+
+        return groups
+
+    finally:
+        conn.close()
+
+
+@router.get("/get_group/{group_id}")
+def getGroup(group_id: int):
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute(
+            "SELECT id, group_name, curator_id FROM groups WHERE id = ?",
+            (group_id,)
+        )
+        row = cursor.fetchone()
+
+        if not row:
+            raise HTTPException(status_code=404, detail="Group not found")
+
+        return {
+            "id": row[0],
+            "group_name": row[1],
+            "curator_id": row[2]
+        }
+
+    finally:
+        conn.close()
+
+
 @router.post("/create_group")
 def createGroup(group: GroupCreate):
     conn = get_connection()
@@ -220,6 +320,50 @@ def deleteGroup(group_name: str):
         else:
             return {"message": "No group found with that name."}
     
+    finally:
+        conn.close()
+
+
+@router.get("/get_subjects")
+def getSubjects():
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute("SELECT id, subject_name FROM subjects")
+        rows = cursor.fetchall()
+
+        subjects = [
+            {
+                "id": row[0],
+                "subject_name": row[1]
+            }
+            for row in rows
+        ]
+
+        return subjects
+
+    finally:
+        conn.close()
+
+
+@router.get("/get_subject/{subject_id}")
+def getSubject(subject_id: int):
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute("SELECT id, subject_name FROM subjects WHERE id = ?", (subject_id,))
+        row = cursor.fetchone()
+
+        if not row:
+            raise HTTPException(status_code=404, detail="Subject not found")
+
+        return {
+            "id": row[0],
+            "subject_name": row[1]
+        }
+
     finally:
         conn.close()
 

@@ -50,6 +50,80 @@ class GradeChange(BaseModel):
     new_grade: str | None = None
 
 
+@router.get("/lessons/{teacher_name}")
+def get_lessons_by_teacher(teacher_name: str):
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute(
+            """
+            SELECT l.id, s.subject_name, u.full_name, l.lesson_date, l.time, l.room, l.topic, l.type
+            FROM lessons l
+            JOIN subjects s ON l.subject_id = s.id
+            JOIN users u ON l.teacher_id = u.id
+            WHERE u.full_name = ?
+            """,
+            (teacher_name,)
+        )
+        rows = cursor.fetchall()
+
+        lessons = [
+            {
+                "lesson_id": r[0],
+                "subject_name": r[1],
+                "teacher": r[2],
+                "date": r[3],
+                "time": r[4],
+                "room": r[5],
+                "topic": r[6],
+                "type": r[7]
+            }
+            for r in rows
+        ]
+
+        return lessons
+
+    finally:
+        conn.close()
+
+
+@router.get("/lesson/{lesson_id}")
+def get_lesson(lesson_id: int):
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute(
+            """
+            SELECT l.id, s.subject_name, u.full_name, l.lesson_date, l.time, l.room, l.topic, l.type
+            FROM lessons l
+            JOIN subjects s ON l.subject_id = s.id
+            JOIN users u ON l.teacher_id = u.id
+            WHERE l.id = ?
+            """,
+            (lesson_id,)
+        )
+        row = cursor.fetchone()
+
+        if not row:
+            raise HTTPException(status_code=404, detail="Lesson not found")
+
+        return {
+            "lesson_id": row[0],
+            "subject_name": row[1],
+            "teacher": row[2],
+            "date": row[3],
+            "time": row[4],
+            "room": row[5],
+            "topic": row[6],
+            "type": row[7]
+        }
+
+    finally:
+        conn.close()
+
+
 @router.post("/create_lesson")
 def create_lesson(lesson: LessonCreate):
     conn = get_connection()
@@ -194,6 +268,83 @@ def delete_lesson(lesson_id: int):
         cursor.execute("DELETE FROM lessons WHERE id = ?", (lesson_id,))
         conn.commit()
         return {"message": "Lesson deleted successfully"}
+    finally:
+        conn.close()
+
+
+@router.get("/lesson_groups/{lesson_id}")
+def get_lesson_groups(lesson_id: int):
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute(
+            """
+            SELECT g.group_name
+            FROM lesson_groups lg
+            JOIN groups g ON lg.group_id = g.id
+            WHERE lg.lesson_id = ?
+            """,
+            (lesson_id,)
+        )
+        rows = cursor.fetchall()
+
+        return {"lesson_id": lesson_id, "groups": [r[0] for r in rows]}
+
+    finally:
+        conn.close()
+
+
+@router.get("/lesson_students/{lesson_id}")
+def get_lesson_students(lesson_id: int):
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute(
+            """
+            SELECT u.full_name
+            FROM lesson_groups lg
+            JOIN users u ON lg.group_id = u.group_id
+            WHERE lg.lesson_id = ? AND u.role = 'student'
+            """,
+            (lesson_id,)
+        )
+        rows = cursor.fetchall()
+
+        return {
+            "lesson_id": lesson_id,
+            "students": [r[0] for r in rows]
+        }
+
+    finally:
+        conn.close()
+
+
+@router.get("/attendance/{lesson_id}")
+def get_attendance(lesson_id: int):
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute(
+            """
+            SELECT u.full_name, a.status
+            FROM attendance a
+            JOIN users u ON a.student_id = u.id
+            WHERE a.lesson_id = ?
+            """,
+            (lesson_id,)
+        )
+        rows = cursor.fetchall()
+
+        return {
+            "lesson_id": lesson_id,
+            "attendance": [
+                {"student": r[0], "status": r[1]} for r in rows
+            ]
+        }
+
     finally:
         conn.close()
 
