@@ -242,7 +242,6 @@ def add_subject(subject: SubjectCreate):
         conn.close()
 
 
-
 @router.patch("/change_subject/{subject_name}")
 def changeSubject(subject_name: str, subject: SubjectChange):
     conn = get_connection()
@@ -282,3 +281,5 @@ def deleteSubject(subject_name: str):
             raise HTTPException(status_code=404, detail="No subject found with that name.")
     finally:
         conn.close()
+
+

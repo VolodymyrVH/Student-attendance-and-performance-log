@@ -181,7 +181,6 @@ def change_lesson(lesson_id: int, change: LessonChange):
         conn.close()
 
 
-
 @router.delete("/delete_lesson/{lesson_id}")
 def delete_lesson(lesson_id: int):
     conn = get_connection()
@@ -197,6 +196,7 @@ def delete_lesson(lesson_id: int):
         return {"message": "Lesson deleted successfully"}
     finally:
         conn.close()
+
 
 @router.post("/mark_attendance")
 def mark_attendance(mark: AttendanceMark):

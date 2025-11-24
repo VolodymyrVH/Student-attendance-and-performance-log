@@ -3,9 +3,17 @@ from pydantic import BaseModel
 from database import get_connection, init_db
 from admin import router as admin_router
 from teacher import router as teacher_router
+from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI(title="Student Attendance and Performance Log API")
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @app.get("/users")
 def get_users():
