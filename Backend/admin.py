@@ -1,207 +1,429 @@
-import sqlite3
+from fastapi import FastAPI, HTTPException, APIRouter
+from pydantic import BaseModel
+from database import get_connection, init_db
 
-conn = sqlite3.connect("sql/database.db")
-cursor = conn.cursor()
+router = APIRouter(prefix="/admin", tags=["admin"])
 
-def addUser():
-    name = input("Enter username: ")
-    password = input("Enter password: ")
-    role = input("Enter role (admin / teacher / student): ").lower()
 
-    if role == "admin":
+class UserCreate(BaseModel):
+    full_name: str
+    password: str
+    role: str
+    group_id: int | None = None
+
+
+class UserUpdate(BaseModel):
+    full_name: str | None = None
+    password: str | None = None
+    role: str | None = None
+    group_id: int | None = None
+
+
+class GroupCreate(BaseModel):
+    group_name: str
+    curator_name: str
+
+
+class GroupChange(BaseModel):
+    group_name: str | None = None
+    curator_name: str | None = None
+
+
+class SubjectCreate(BaseModel):
+    subject_name: str
+
+
+class SubjectChange(BaseModel):
+    subject_name: str
+
+
+@router.get("/get_users")
+def getAllUsers():
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute("SELECT id, full_name, role, group_id FROM users")
+        data = cursor.fetchall()
+
+        users_list = [
+            {
+                "id": row[0],
+                "full_name": row[1],
+                "role": row[2],
+                "group_id": row[3]
+            }
+            for row in data
+        ]
+
+        return users_list
+
+    finally:
+        conn.close()
+
+
+@router.get("/get_user/{user_id}")
+def getUser(user_id: int):
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    try:
         cursor.execute(
-            "INSERT INTO users (full_name, password, role) VALUES (?, ?, ?)",
-            (name, password, role)
+            "SELECT id, full_name, role, group_id FROM users WHERE id = ?", 
+            (user_id,)
         )
+        row = cursor.fetchone()
 
-    else:
-        group = input("Enter group name: ")
+        if not row:
+            raise HTTPException(status_code=404, detail="User not found")
 
-        cursor.execute("SELECT id FROM groups WHERE group_name = ?", (group,))
-        result = cursor.fetchone()
+        return {
+            "id": row[0],
+            "full_name": row[1],
+            "role": row[2],
+            "group_id": row[3]
+        }
 
-        if result:
-            group_id = result[0]
+    finally:
+        conn.close()
+
+
+@router.post("/add_user")
+def addUser(user: UserCreate):
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    role = user.role.lower()
+
+    if role not in ["admin", "teacher", "student"]:
+        conn.close()
+        raise HTTPException(status_code=400, detail="Invalid role. Must be 'admin', 'teacher', or 'student'.")
+
+    try:
+        if role == "admin":
             cursor.execute(
-                "INSERT INTO users (full_name, password, role, group_id) VALUES (?, ?, ?, ?)",
-                (name, password, role, group_id)
+                "INSERT INTO users (full_name, password, role) VALUES (?, ?, ?)",
+                (user.full_name, user.password, role)
             )
         else:
-            print("No group found with that name.")
-            return
+            if not user.group_id:
+                conn.close()
+                raise HTTPException(status_code=400, detail="Group ID required")
 
-    conn.commit()
-    print("User added successfully.")
+            cursor.execute("SELECT id FROM groups WHERE id = ?", (user.group_id,))
+            result = cursor.fetchone()
 
+            if not result:
+                conn.close()
+                raise HTTPException(status_code=404, detail="Group not found")
 
-def deleteUser():
-    deleteName = input("Enter username to delete: ")
-    cursor.execute("SELECT id FROM users WHERE full_name = ?", (deleteName,))
-    if cursor.fetchone():
-        cursor.execute("DELETE FROM users WHERE full_name = ?", (deleteName,))
+            cursor.execute(
+                "INSERT INTO users (full_name, password, role, group_id) VALUES (?, ?, ?, ?)",
+                (user.full_name, user.password, role, user.group_id)
+            )
+
         conn.commit()
-        print("User deleted successfully.")
-    else:
-        print("No User found with that name.")
+        return {"message": "User added successfully."}
+    finally:
+        conn.close()
 
 
-def changeUser():
-    name = input("Enter username to change something: ")
-    changing = input("What do you want to change in this user? (Name / Password / Role / Group): ").lower()
+@router.delete("/delete_user/{user_id}")
+def deleteUser(user_id: int):
+    conn = get_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("SELECT id FROM users WHERE id = ?", (user_id,))
+        if cursor.fetchone():
+            cursor.execute("DELETE FROM users WHERE id = ?", (user_id,))
+            conn.commit()
+            return {"message": "User deleted successfully."}
+        else:
+            return {"message": "User not found."}
+    finally:
+        conn.close()
 
-    if changing == "name":
-        new_value = input("Enter new name: ")
-        cursor.execute("UPDATE users SET full_name = ? WHERE full_name = ?", (new_value, name))
 
-    elif changing == "password":
-        new_value = input("Enter new password: ")
-        cursor.execute("UPDATE users SET password = ? WHERE full_name = ?", (new_value, name))
+@router.patch("/change_user/{user_id}")
+def changeUser(user_id: int, user: UserUpdate):
+    conn = get_connection()
+    cursor = conn.cursor()
 
-    elif changing == "role":
-        new_value = input("Enter new role (admin / teacher / student): ")
-        cursor.execute("UPDATE users SET role = ? WHERE full_name = ?", (new_value, name))
+    try:
+        cursor.execute("SELECT id FROM users WHERE id = ?", (user_id,))
+        existing = cursor.fetchone()
+        if not existing:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        fields = []
+        values = []
+        
+        if user.full_name:
+            fields.append("full_name = ?")
+            values.append(user.full_name)
+        
+        if user.password:
+            fields.append("password = ?")
+            values.append(user.password)
+        
+        if user.role:
+            role = user.role.lower()
+            if role not in ["admin", "teacher", "student"]:
+                raise HTTPException(status_code=400, detail="Invalid role. Must be 'admin', 'teacher', or 'student'.")
+            fields.append("role = ?")
+            values.append(role)
 
-    elif changing == "group":
-        new_group = input("Enter new group name: ")
-        cursor.execute("SELECT id FROM groups WHERE group_name = ?", (new_group,))
+        if user.group_id is not None:
+            cursor.execute("SELECT id FROM groups WHERE id = ?", (user.group_id,))
+            result = cursor.fetchone()
+            if not result:
+                raise HTTPException(status_code=404, detail="Group not found")
+            fields.append("group_id = ?")
+            values.append(user.group_id)
+        
+        if not fields:
+            raise HTTPException(status_code=400, detail="No fields to update")
+        
+        sql = f"UPDATE users SET {', '.join(fields)} WHERE id = ?"
+        values.append(user_id)
+
+        cursor.execute(sql, tuple(values))
+        conn.commit()
+        return {"message": "User updated successfully."}
+        
+    finally:
+        conn.close()
+
+
+@router.get("/get_groups")
+def getGroups():
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute("SELECT id, group_name, curator_id FROM groups")
+        rows = cursor.fetchall()
+
+        groups = [
+            {
+                "id": row[0],
+                "group_name": row[1],
+                "curator_id": row[2]
+            }
+            for row in rows
+        ]
+
+        return groups
+
+    finally:
+        conn.close()
+
+
+@router.get("/get_group/{group_id}")
+def getGroup(group_id: int):
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute(
+            "SELECT id, group_name, curator_id FROM groups WHERE id = ?",
+            (group_id,)
+        )
+        row = cursor.fetchone()
+
+        if not row:
+            raise HTTPException(status_code=404, detail="Group not found")
+
+        return {
+            "id": row[0],
+            "group_name": row[1],
+            "curator_id": row[2]
+        }
+
+    finally:
+        conn.close()
+
+
+@router.post("/create_group")
+def createGroup(group: GroupCreate):
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute("SELECT id FROM groups WHERE group_name = ?", (group.group_name,))
+        if cursor.fetchone():
+            raise HTTPException(status_code=400, detail="Group with that name already exists.")
+
+        cursor.execute("SELECT id FROM users WHERE full_name = ? AND (role = 'teacher' OR role = 'admin')", (group.curator_name,))
         result = cursor.fetchone()
 
-        if result:
-            group_id = result[0]
-            cursor.execute("UPDATE users SET group_id = ? WHERE full_name = ?", (group_id, name))
-        else:
-            print("No group found with that name.")
-            return
+        if not result:
+            raise HTTPException(status_code=404, detail="No teacher found with that name.")
+        
 
-    else:
-        print("Invalid option")
-        return
-
-    conn.commit()
-    print("User updated successfully.")
-
-
-def createGroup():
-    name = input("Enter name of the group: ")
-    curator_name = input("Enter curator name for the group: ")
-
-    cursor.execute("SELECT id FROM groups WHERE group_name = ?", (name,))
-    if cursor.fetchone():
-        print("Group with this name already exists.")
-        return
-
-    cursor.execute("SELECT id FROM users WHERE full_name = ? AND role = 'teacher'", (curator_name,))
-    result = cursor.fetchone()
-
-    if result:
         curator_id = result[0]
-        cursor.execute("INSERT INTO groups (group_name, curator_id) VALUES (?, ?)", (name, curator_id))
+        cursor.execute("INSERT INTO groups (group_name, curator_id) VALUES (?, ?)", (group.group_name, curator_id))
         conn.commit()
-        print("Group created successfully.")
-    else:
-        print("No teacher found with that name.")
+        return {"message": "Group created successfully."}
+        
+    finally:
+        conn.close()
 
 
-def changeGroup():
-    name = input("Enter group name to change something: ")
-    changing = input("What do you want to change in this group? (Name / Curator): ").lower()
+@router.patch("/change_group/{group_name}")
+def changeGroup(group_name: str, group: GroupChange):
+    conn = get_connection()
+    cursor = conn.cursor()
 
-    if changing == "name":
-        new_value = input("Enter new group name: ")
-        cursor.execute("UPDATE groups SET group_name = ? WHERE group_name = ?", (new_value, name))
+    try:
+        cursor.execute("SELECT id FROM groups WHERE group_name = ?", (group_name,))
+        if not cursor.fetchone():
+            raise HTTPException(status_code=404, detail="Group not found")
+        
+        updated = False
+        if group.group_name:
+            cursor.execute("UPDATE groups SET group_name = ? WHERE group_name = ?", (group.group_name, group_name))
+            if cursor.fetchone():
+                raise HTTPException(status_code=400, detail="Group with that name already exists.")
+            cursor.execute("UPDATE groups SET group_name = ? WHERE group_name = ?", (group.group_name, group_name))
+            updated = True
 
-    elif changing == "curator":
-        new_curator = input("Enter new curator full name: ")
-        cursor.execute("SELECT id FROM users WHERE full_name = ? AND role = 'teacher'", (new_curator,))
-        result = cursor.fetchone()
+        if group.curator_name:
+            cursor.execute("SELECT id FROM users WHERE full_name = ? AND role = 'teacher'", (group.curator_name,))
+            result = cursor.fetchone()
+            if not result:
+                raise HTTPException(status_code=404, detail="Curator not found")
+            cursor.execute("UPDATE groups SET curator_id = ? WHERE group_name = ?", (result[0], group_name))
+            updated = True
+        
+        if not updated:
+            raise HTTPException(status_code=400, detail="No fields to update")
+        
+        conn.commit()
+        return {"message": "Group updated successfully."}
 
-        if result:
-            curator_id = result[0]
-            cursor.execute("UPDATE groups SET curator_id = ? WHERE group_name = ?", (curator_id, name))
+    finally:
+        conn.close()
+
+
+@router.delete("/delete_group/{group_name}")
+def deleteGroup(group_name: str):
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute("SELECT id FROM groups WHERE group_name = ?", (group_name,))
+        if cursor.fetchone():
+            cursor.execute("DELETE FROM groups WHERE group_name = ?", (group_name,))
+            conn.commit()
+            return {"message": "Group deleted successfully."}
         else:
-            print("No teacher found with that name.")
-            return
-
-    else:
-        print("Invalid option")
-        return
-
-    conn.commit()
-    print("Group updated successfully.")
+            return {"message": "No group found with that name."}
+    
+    finally:
+        conn.close()
 
 
-def deleteGroup():
-    deleteName = input("Enter group name to delete: ")
-    cursor.execute("SELECT id FROM groups WHERE group_name = ?", (deleteName,))
-    if cursor.fetchone():
-        cursor.execute("DELETE FROM groups WHERE group_name = ?", (deleteName,))
+@router.get("/get_subjects")
+def getSubjects():
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute("SELECT id, subject_name FROM subjects")
+        rows = cursor.fetchall()
+
+        subjects = [
+            {
+                "id": row[0],
+                "subject_name": row[1]
+            }
+            for row in rows
+        ]
+
+        return subjects
+
+    finally:
+        conn.close()
+
+
+@router.get("/get_subject/{subject_id}")
+def getSubject(subject_id: int):
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute("SELECT id, subject_name FROM subjects WHERE id = ?", (subject_id,))
+        row = cursor.fetchone()
+
+        if not row:
+            raise HTTPException(status_code=404, detail="Subject not found")
+
+        return {
+            "id": row[0],
+            "subject_name": row[1]
+        }
+
+    finally:
+        conn.close()
+
+
+@router.post("/add_subject")
+def add_subject(subject: SubjectCreate):
+    conn = get_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("SELECT id FROM subjects WHERE subject_name = ?", (subject.subject_name,))
+        if cursor.fetchone():
+            raise HTTPException(status_code=400, detail="Subject with that name already exists.")
+
+        cursor.execute(
+            "INSERT INTO subjects (subject_name) VALUES (?)", (subject.subject_name,)
+        )
         conn.commit()
-        print("Group deleted successfully.")
-    else:
-        print("No group found with that name.")
+        return {"message": "Subject added successfully."}
+    finally:
+        conn.close()
 
 
-def addSubject():
-    name = input("Enter subject name: ")
-    group_name = input("Enter group: ")
-    teacher_name = input("Enter teacher: ")
+@router.patch("/change_subject/{subject_name}")
+def changeSubject(subject_name: str, subject: SubjectChange):
+    conn = get_connection()
+    cursor = conn.cursor()
 
-    cursor.execute("SELECT id FROM groups WHERE group_name = ?", (group_name,))
-    group_result = cursor.fetchone()
-    if not group_result:
-        print("No group found with that name.")
-        return
-    group_id = group_result[0]
-
-    cursor.execute("SELECT id FROM users WHERE full_name = ? AND role = 'teacher'", (teacher_name,))
-    teacher_result = cursor.fetchone()
-    if not teacher_result:
-        print("No teacher found with that name.")
-        return
-    teacher_id = teacher_result[0]
-
-    cursor.execute(
-        "INSERT INTO subjects (subject_name, group_id, teacher_id) VALUES (?, ?, ?)",
-        (name, group_id, teacher_id)
-    )
-    conn.commit()
-    print("Subject added successfully.")
+    try:
+        cursor.execute("SELECT id FROM subjects WHERE subject_name = ?", (subject_name,))
+        if not cursor.fetchone():
+            raise HTTPException(status_code=404, detail="Subject not found")
+        
+        if not subject.subject_name:
+            raise HTTPException(status_code=400, detail="No fields to update")
+        
+        cursor.execute("SELECT id FROM subjects WHERE subject_name = ?", (subject.subject_name,))
+        if cursor.fetchone():
+            raise HTTPException(status_code=400, detail="A subject with the new name already exists.")
+        
+        cursor.execute("UPDATE subjects SET subject_name = ? WHERE subject_name = ?", (subject.subject_name, subject_name))
+        conn.commit()
+        return {"message": "Subject updated successfully."}
+    finally:
+        conn.close()
 
 
-def changeSubject():
-    name = input("Enter subject name to change something: ")
-    changing = input("What do you want to change in this group? (Name / Teacher): ").lower()
+@router.delete("/delete_subject/{subject_name}")
+def deleteSubject(subject_name: str):
+    conn = get_connection()
+    cursor = conn.cursor()
 
-    if changing == "name":
-        new_value = input("Enter new subject name: ")
-        cursor.execute("UPDATE subjects SET subject_name = ? WHERE subject_name = ?", (new_value, name))
-
-    elif changing == "teacher":
-        new_teacher = input("Enter new teacher full name: ")
-        cursor.execute("SELECT id FROM users WHERE full_name = ? AND role = 'teacher'", (new_teacher,))
-        result = cursor.fetchone()
-
-        if result:
-            teacher_id = result[0]
-            cursor.execute("UPDATE subjects SET teacher_id = ? WHERE subject_name = ?", (teacher_id, name))
+    try:
+        cursor.execute("SELECT id FROM subjects WHERE subject_name = ?", (subject_name,))
+        if cursor.fetchone():
+            cursor.execute("DELETE FROM subjects WHERE subject_name = ?", (subject_name,))
+            conn.commit()
+            return {"message": "Subject deleted successfully."}
         else:
-            print("No teacher found with that name.")
-            return
-
-    else:
-        print("Invalid option")
-        return
-
-    conn.commit()
-    print("Subject updated successfully.")
+            raise HTTPException(status_code=404, detail="No subject found with that name.")
+    finally:
+        conn.close()
 
 
-def deleteSubject():
-    deleteName = input("Enter subject name to delete: ")
-    cursor.execute("SELECT id FROM subjects WHERE subject_name = ?", (deleteName,))
-    if cursor.fetchone():
-        cursor.execute("DELETE FROM subjects WHERE subject_name = ?", (deleteName,))
-        conn.commit()
-        print("Subject deleted successfully.")
-    else:
-        print("No subject found with that name.")
