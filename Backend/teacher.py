@@ -389,6 +389,65 @@ def mark_attendance(mark: AttendanceMark):
         conn.close()
 
 
+@router.get("/grades")
+def get_student_grades(student_name: str, subject_name: str | None = None):
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute(
+            "SELECT id FROM users WHERE full_name = ? AND role = 'student'",
+            (student_name,)
+        )
+        student = cursor.fetchone()
+        if not student:
+            raise HTTPException(status_code=404, detail="Student not found")
+        student_id = student[0]
+
+        if subject_name is None:
+            cursor.execute(
+                """
+                SELECT s.subject_name, g.grade, g.date
+                FROM grades g
+                JOIN subjects s ON g.subject_id = s.id
+                WHERE g.student_id = ?
+                """,
+                (student_id,)
+            )
+        else:
+            cursor.execute(
+                "SELECT id FROM subjects WHERE subject_name = ?",
+                (subject_name,)
+            )
+            subject = cursor.fetchone()
+            if not subject:
+                raise HTTPException(status_code=404, detail="Subject not found")
+            subject_id = subject[0]
+
+            cursor.execute(
+                """
+                SELECT s.subject_name, g.grade, g.date
+                FROM grades g
+                JOIN subjects s ON g.subject_id = s.id
+                WHERE g.student_id = ? AND g.subject_id = ?
+                """,
+                (student_id, subject_id)
+            )
+
+        rows = cursor.fetchall()
+
+        return {
+            "student": student_name,
+            "grades": [
+                {"subject": r[0], "grade": r[1], "date": r[2]}
+                for r in rows
+            ]
+        }
+
+    finally:
+        conn.close()
+
+
 @router.post("/add_grade")
 def add_grade(g: GradeAdd):
     conn = get_connection()
