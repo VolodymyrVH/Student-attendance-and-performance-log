@@ -1,19 +1,32 @@
-<!-- login.html -->
 <!DOCTYPE html>
-<html>
+<html lang="uk">
 <head>
     <meta charset="UTF-8">
-    <title>login</title>
+    <title>Owl Lessons – Login</title>
+    
+    <link rel="stylesheet" href="css/loginpage.css">
 </head>
 <body>
-    <h2>Login</h2>
-    <form action="mainpage.html">
-        <label>name:</label><br>
-        <input type="text" name="username"><br><br>
-        <label>password:</label><br>
-        <input type="password" name="password"><br>
-        <a href="#">Forgot password?</a><br><br>
-        <button type="submit">Next</button>
-    </form>
+
+    <div class="topbar">owl lessons</div>
+
+    <div class="logo">
+        🦉 Owl lessons
+    </div>
+
+    <div class="login-box">
+        <form action="mainpage.html">
+            <label>Логін</label><br>
+            <input class="login-input" type="text" name="username">
+
+            <label>Пароль</label><br>
+            <input class="login-input" type="password" name="password">
+
+            <a href="#" class="forgot">Забув пароль ??</a><br>
+
+            <button type="submit" class="next-btn">Далі</button>
+        </form>
+    </div>
+
 </body>
 </html>
