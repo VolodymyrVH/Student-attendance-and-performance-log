@@ -1,68 +1,131 @@
-const tableBody = document.querySelector("#scheduleTable tbody");
-    const form = document.getElementById("lessonForm");
+const full_name_element = document.getElementById("full_name");
+const fullNameDB = localStorage.getItem("full_name");
+full_name_element.textContent = fullNameDB;
 
-    window.onload = function() {
-        const saved = localStorage.getItem("schedule");
-        if (saved) {
-            tableBody.innerHTML = saved;
-        }
+const tableBody = document.querySelector("#scheduleTable tbody");
+const form = document.getElementById("lessonForm");
+
+function toggleForm() {
+    form.style.display = form.style.display === "block" ? "none" : "block";
+}
+
+async function submitLesson(event) {
+    event.preventDefault();
+
+    const teacher = document.getElementById("teacher").value;
+    const subject = document.getElementById("subject").value;
+    const date = document.getElementById("date").value;
+    const time = document.getElementById("time").value;
+    const room = document.getElementById("room").value;
+    const description = document.getElementById("description").value;
+    const lessonType = document.getElementById("lessonType").value;
+    const groups = document.getElementById("groups").value.split(",").map(g => g.trim());
+
+    const body = {
+        teacher_name: teacher,
+        subject_name: subject,
+        lesson_date: date,
+        time: time,
+        room: room,
+        topic: description,
+        type: lessonType,
+        groups: groups
     };
 
-    function toggleForm() {
-        form.style.display = form.style.display === "block" ? "none" : "block";
-    }
+    try {
+        const response = await fetch("http://127.0.0.1:8000/teacher/create_lesson", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body)
+        });
 
-    function submitLesson(event) {
-        event.preventDefault();
+        if (!response.ok) {
+            alert("Не вдалося створити урок!");
+            return;
+        }
 
-        const teacher = document.getElementById("teacher").value;
-        const subject = document.getElementById("subject").value;
-        const date = document.getElementById("date").value;
-        const time = document.getElementById("time").value;
-        const room = document.getElementById("room").value;
-        const description = document.getElementById("description").value;
-        const lessonType = document.getElementById("lessonType").value;
-        const groups = document.getElementById("groups").value;
-
-        const row = document.createElement("tr");
-        row.innerHTML = `
-            <td>${teacher}</td>
-            <td>${subject}</td>
-            <td>${date}</td>
-            <td>${time}</td>
-            <td>${room}</td>
-            <td>${lessonType}</td>
-            <td>${groups}</td>
-            <td>${description}</td>
-            <td><button onclick="deleteRow(this)">X</button></td>
-        `;
-
-        tableBody.appendChild(row);
+        await loadLessons();
 
         form.reset();
         form.style.display = "none";
-    }
 
-    function deleteRow(btn) {
-        btn.parentElement.parentElement.remove();
+    } catch (error) {
+        console.error("Помилка створення уроку:", error);
     }
+}
 
-    function saveSchedule() {
-        localStorage.setItem("schedule", tableBody.innerHTML);
-        alert("Збережено!");
-    }
+async function deleteRow(lessonId) {
+    if (!confirm("Видалити урок?")) return;
 
-    function clearSchedule() {
-        if (confirm("Очистити розклад повністю?")) {
-            tableBody.innerHTML = "";
-            localStorage.removeItem("schedule");
+    try {
+        const response = await fetch(`http://127.0.0.1:8000/teacher/delete_lesson/${lessonId}`, {
+            method: "DELETE"
+        });
+
+        if (!response.ok) {
+            alert("Не вдалося видалити урок");
+            return;
         }
+
+        await loadLessons();
+
+    } catch (error) {
+        console.error("Помилка видалення:", error);
     }
+}
 
-    const menuBtn = document.getElementById("menuBtn");
-    const sideMenu = document.getElementById("sideMenu");
+function saveSchedule() {
+    localStorage.setItem("schedule", tableBody.innerHTML);
+    alert("Збережено!");
+}
 
-    menuBtn.addEventListener("click", () => {
-        sideMenu.style.display =
-            sideMenu.style.display === "block" ? "none" : "block";
-    });
+function clearSchedule() {
+    if (confirm("Очистити розклад повністю?")) {
+        tableBody.innerHTML = "";
+        localStorage.removeItem("schedule");
+    }
+}
+
+async function loadLessons() {
+    tableBody.innerHTML = "";
+
+    try {
+        const response = await fetch(`http://127.0.0.1:8000/teacher/lessons/${fullNameDB}`);
+
+        if (!response.ok) {
+            console.error("Не вдалося завантажити уроки");
+            return;
+        }
+
+        const lessons = await response.json();
+
+        lessons.forEach(lesson => {
+            const row = document.createElement("tr");
+            row.innerHTML = `
+                <td>${lesson.teacher}</td>
+                <td>${lesson.subject_name}</td>
+                <td>${lesson.date}</td>
+                <td>${lesson.time}</td>
+                <td>${lesson.room}</td>
+                <td>${lesson.type}</td>
+                <td>${lesson.groups}</td>
+                <td>${lesson.topic}</td>
+                <td><button onclick="deleteRow(${lesson.lesson_id})">X</button></td>
+            `;
+            tableBody.appendChild(row);
+        });
+
+    } catch (error) {
+        console.error("Помилка при завантаженні уроків:", error);
+    }
+}
+
+window.onload = loadLessons;
+
+
+const menuBtn = document.getElementById("menuBtn");
+const sideMenu = document.getElementById("sideMenu");
+
+menuBtn.addEventListener("click", () => {
+    sideMenu.style.display = sideMenu.style.display === "block" ? "none" : "block";
+});

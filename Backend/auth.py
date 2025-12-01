@@ -6,14 +6,14 @@ import hashlib
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 class LoginData(BaseModel):
-    username: str
+    full_name: str
     password: str
 
 @router.post("/login")
 def login(data: LoginData):
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT id, password, role FROM users WHERE username = ?", (data.username,))
+    cursor.execute("SELECT id, password, role FROM users WHERE full_name = ?", (data.full_name,))
     user = cursor.fetchone()
     conn.close()
 
@@ -21,8 +21,9 @@ def login(data: LoginData):
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
     user_id, hashed_password, role = user
-    if hashlib.sha256(data.password.encode()).hexdigest() != hashed_password:
+    if data.password != hashed_password:
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
     token = f"fake-token-for-user-{user_id}"
-    return {"token": token, "user_id": user_id, "role": role}
+    return {"full_name": data.full_name, "token": token, "user_id": user_id, "role": role}
+

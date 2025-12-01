@@ -58,11 +58,16 @@ def get_lessons_by_teacher(teacher_name: str):
     try:
         cursor.execute(
             """
-            SELECT l.id, s.subject_name, u.full_name, l.lesson_date, l.time, l.room, l.topic, l.type
+            SELECT l.id, s.subject_name, u.full_name, l.lesson_date, l.time, l.room,
+                l.topic, l.type,
+                GROUP_CONCAT(g.group_name)
             FROM lessons l
             JOIN subjects s ON l.subject_id = s.id
             JOIN users u ON l.teacher_id = u.id
+            LEFT JOIN lesson_groups lg ON lg.lesson_id = l.id
+            LEFT JOIN groups g ON g.id = lg.group_id
             WHERE u.full_name = ?
+            GROUP BY l.id
             """,
             (teacher_name,)
         )
@@ -77,7 +82,8 @@ def get_lessons_by_teacher(teacher_name: str):
                 "time": r[4],
                 "room": r[5],
                 "topic": r[6],
-                "type": r[7]
+                "type": r[7],
+                "groups": r[8] if r[8] else ""
             }
             for r in rows
         ]

@@ -3,21 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <title>Owl Lessons – Login</title>
-    
     <link rel="stylesheet" href="css/loginpage.css">
 </head>
 <body>
-
     <div class="topbar">owl lessons</div>
-
     <div class="logo">
         🦉 Owl lessons
     </div>
-
     <div class="login-box">
-        <form action="mainpage.html">
+        <form id="login-form">
             <label>Логін</label><br>
-            <input class="login-input" type="text" name="username">
+            <input class="login-input" type="text" name="full_name"><br>
 
             <label>Пароль</label><br>
             <input class="login-input" type="password" name="password">
@@ -27,6 +23,6 @@
             <button type="submit" class="next-btn">Далі</button>
         </form>
     </div>
-
+    <script src="js/loginpage.js"></script>
 </body>
 </html>

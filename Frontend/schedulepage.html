@@ -3,68 +3,50 @@
 <head>
     <meta charset="UTF-8">
     <title>Розклад</title>
-
     <link rel="stylesheet" href="css/schedulepage.css">
 </head>
-
 <body>
-
     <div class="topbar">
         <div class="menu-icon" id="menuBtn">☰</div>
-        <div>Розклад 9-Б класу</div>
-        <div class="username">Адмін</div>
+        <div>Розклад</div>
+        <div class="username" id="full_name"></div>
     </div>
-
     <div class="side-menu" id="sideMenu">
         <div class="menu-item" onclick="window.location.href='schedulepage.html'">📅 Розклад</div>
         <div class="menu-item" onclick="window.location.href='mainpage.html'">🏠 Основна сторінка</div>
         <div class="menu-item">👤 Профіль</div>
         <div class="menu-item" onclick="window.location.href='loginpage.html'">↩ Вийти</div>
     </div>
-
     <div class="class-title"></div>
-
     <div class="controls">
         <button onclick="toggleForm()">Додати урок</button>
         <button onclick="saveSchedule()">Зберегти</button>
         <button onclick="clearSchedule()">Очистити</button>
     </div>
-
-    
     <form id="lessonForm" onsubmit="submitLesson(event)">
         <h3>Додати урок</h3>
-
         <label>Імʼя вчителя:</label>
         <input type="text" id="teacher" required>
-
         <label>Предмет:</label>
         <input type="text" id="subject" required>
-
         <label>Дата:</label>
         <input type="date" id="date" required>
-
         <label>Час:</label>
         <input type="time" id="time" required>
-
         <label>Кабінет:</label>
         <input type="text" id="room" required>
-
         <label>Опис:</label>
         <textarea id="description"></textarea>
-
         <label>Тип урока:</label>
         <select id="lessonType" required>
-            <option value="лаба">Лаба</option>
-            <option value="лекція">Лекція</option>
-            <option value="практика">Практика</option>
+            <option value="lab">Лабораторна робота</option>
+            <option value="lecture">Лекція</option>
+            <option value="practice">Практика</option>
         </select>
-
         <label>Групи:</label>
         <input type="text" id="groups">
-
         <button type="submit">Додати</button>
     </form>
-
     <table id="scheduleTable">
         <thead>
             <tr>
@@ -81,8 +63,6 @@
         </thead>
         <tbody></tbody>
     </table>
-
 <script src="js/schedulepage.js"></script>
-
 </body>
 </html>
